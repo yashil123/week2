@@ -1,4 +1,4 @@
-# Episode 2 - The Sign of ArUcoscdcdcdcd
+# Episode 2 - The Sign of ArUcos
 
 
 So till now you have learnt how to control our bot and guide it through the maze using your keyboard. But when we are thinking about challenging Moriarty, we can't take any chances! We have to ensure that the bot is able to navigate it's own way through the maze using some clues present at each nodes of the maze. Holmes has deduced the nature of the clues that would be present. According to him, they would be of the form of markers known as ArUco markers. We need to train our bot to identify and process these. But before that, what exactly are this 'ArUco markers'? Let's find out...
@@ -67,7 +67,7 @@ Please refer to this [link](https://docs.opencv.org/4.5.0/d2/de6/tutorial_py_set
 #### Setting up VS code
   
 ```bash
-cd ~/catkin_ws/src
+cd ~/erc_ws/src
 git clone https://github.com/kaushaljadhav512/opencv_tutorials
 ```
 Launch VSC and in the explorer’s tab open the newly created folder (opencv_tutorials) and create a .py file to write your practice code.
@@ -188,18 +188,18 @@ if __name__ == '__main__':
 
 Open the Terminal and run following commands-
 ```bash
-cd ~/catkin_ws/src
+cd ~/erc_ws/src
 git clone -b python3_noetic --single-branch https://github.com/Tejas2910/aruco_detection
-cd ~/catkin_ws
-catkin_make
+cd ~/erc_ws
+colcon build
 ```
 Now you have a package aruco_detection, let's run it.
 ```bash
-roslaunch aruco_detection maze_aruco.launch
+ros2 run aruco_detection maze_aruco
 ```
 Let's spawn the Turtlebot3 by running following command in another tab
 ```bash
-roslaunch aruco_detection spawn_turtlebot3.launch
+ros2 run aruco_detection spawn_turtlebot3
 ```
 You can see ArUco marker in front of TurtleBot3(waffle_pi model).
 Why we used waffle_pi ? Guess... Remember Investigation 1 of Episode 1. 
@@ -245,7 +245,7 @@ Now, we will subscribe ```/turtlebot3_waffle_pi/camera/image_raw``` topic to con
 
 Execute the following command in another tab.
 ```bash
-rosrun aruco_detection detect_marker.py
+ros2 run aruco_detection detect_marker.py
 ```
 On executing You should be able to see following screen.
 
@@ -377,8 +377,8 @@ Open **maze_aruco.launch** file in launch folder and replace empty.world with ma
 ```
 Execute following command 
 ```bash
-roslaunch aruco_detection maze_aruco.launch
-roslaunch aruco_detection spawn_turtlebot3.launch
+ros2 launch aruco_detection maze_aruco.launch
+ros2 launch aruco_detection spawn_turtlebot3.launch
 ```
 Upon execution, the following screen should be visible.
 
@@ -400,7 +400,7 @@ ArUco will guide you along the way to solve the maze.
 
 The **Blue line** in ArUco marker in "Image Window" is indicating that magic wall 
 
-Execute ```rosrun aruco_detection detect_marker.py```. Open new terminal and execute ```roslaunch aruco_detection turtlebot3_teleop_key.launch``` to control bot.
+Execute ```rosrun aruco_detection detect_marker.py```. Open new terminal and execute ```ros2 launch aruco_detection turtlebot3_teleop_key.launch``` to control bot.
 
 If you are curious about how these walls are created, don't worry. We will go deeper into these things in coming week.
 
