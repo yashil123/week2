@@ -139,48 +139,53 @@ Here is a node that listens to a ROS image message topic, converts the images in
 ```python
 #!/usr/bin/env python3  #setting up environment
   
-import rospy
+import rclpy
 from sensor_msgs.msg import Image
 import cv2
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 
+class ImageSubscriber:
+    def __init__(self):
+        self.node = rclpy.create_node('cvbridge_example')
 
-def callback(img_msg):
-    # Initialize the CvBridge class
-    bridge = CvBridge()
-    # Print some info of image to the Terminal and to a ROS Log file located in ~/.ros/log/loghash/*.log
-    rospy.loginfo(img_msg.header)
+        # Initialize the CvBridge class
+        self.bridge = CvBridge()
 
-    # Try to convert the ROS Image message to a CV2 Image
-    try:
-        cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")   # this function converts images format used
-								  # in ROS to the one used in CV
-    except CvBridgeError as e:
-        rospy.logerr("CvBridge Error: {0}".format(e))
+        # Subscribe to the image topic
+        self.image_subscriber = self.node.create_subscription(
+            Image,
+            '/camera/rgb/image_raw',
+            self.callback,
+            10  # Set the queue size
+        )
 
-    # Convert the image to Grayscale
-    gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)  # cv2.cvtColor(img_in , color code) converts the image 
-    						       # according to the color code. For example, 
-    						       # RGB to GBR to Grayscale etc. Refer this for more info. and codes
-						       # https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html
-    # Show the converted image
-    cv2.namedWindow("Image Window", 1)    # creating a window in which the image will be displayed
-    cv2.imshow("Image Window", gray)      # displaying the new image in that window
-    cv2.waitKey(3)			  # wait 3 seconds for a user input
+    def callback(self, img_msg):
+        # Print some info of image to the Terminal
+        self.node.get_logger().info(str(img_msg.header))
 
+        # Try to convert the ROS Image message to a CV2 Image
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        except CvBridgeError as e:
+            self.node.get_logger().error("CvBridge Error: {0}".format(e))
 
-def laser():
-    rospy.Subscriber('/camera/rgb/image_raw', Image, callback)  
-    rospy.spin()
+        # Convert the image to Grayscale
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
+        # Show the converted image
+        cv2.namedWindow("Image Window", cv2.WINDOW_NORMAL)
+        cv2.imshow("Image Window", gray)
+        cv2.waitKey(3)
+
+def main(args=None):
+    rclpy.init(args=args)
+    image_subscriber = ImageSubscriber()
+    rclpy.spin(image_subscriber.node)
+    rclpy.shutdown()
 
 if __name__ == '__main__':
-    rospy.init_node('cvbridge_example', anonymous=True)
-    try:
-        laser()
+    main()
 
-    except rospy.ROSInterruptException:
-        pass
 ```
 
 
