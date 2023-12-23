@@ -261,99 +261,88 @@ Have a look at the detect_marker.py file
 ```python
 #!/usr/bin/env python3
 
+#!/usr/bin/env python3
+
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 import cv2
 import numpy as np
-import rospy
+import rclpy
+from rclpy.node import Node
 import cv2.aruco as aruco
-import sys
-import math
 import time
 
-def detect_ArUco(img):
-	## function to detect ArUco markers in the image using ArUco library
-	## argument: img is the test image
-	## return:   dictionary named Detected_ArUco_markers of the format {ArUco_id_no : corners},
-	## 	     where ArUco_id_no indicates ArUco id and corners indicates the four corner position 
-	##	     of the aruco(numpy array)
-	##	     for instance, if there is an ArUco(0) in some orientation then, ArUco_list can be like
-	## 				{0: array([[315, 163], [319, 263], [219, 267], [215,167]], dtype=float32)}
-						
-    Detected_ArUco_markers = {}
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)    		# converting image to grayscale
-    aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_250)	# extracting a pre-defined dictionary of various aruco markers
-    parameters = aruco.DetectorParameters_create()		# returns the parameters required by opencv to detect aruco markers. Leave it at default
-    
-    # get the coordinates of all the aruco markers in the scene along with their ID
-    corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters = parameters) 
-    i = 0
-    
-    # storing extracted data
-    try:
-        for id in ids:
-            for id_Number in id:
-                Detected_ArUco_markers[id_Number] = corners[i][0]    
+class ArUcoDetector(Node):
+    def __init__(self):
+        super().__init__('detect_marker')
+        self.subscription = self.create_subscription(
+            Image,
+            '/turtlebot3_waffle_pi/camera/image_raw',
+            self.callback,
+            10  # Set the queue size
+        )
+        self.bridge = CvBridge()
 
-    except TypeError:
-        print("No aruco in front of me")
+    def detect_ArUco(self, img):
+        Detected_ArUco_markers = {}
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_250)
+        parameters = aruco.DetectorParameters_create()
+        
+        corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
-    i += 1
-    return Detected_ArUco_markers
+        try:
+            for id in ids:
+                for id_Number in id:
+                    Detected_ArUco_markers[id_Number] = corners[i][0]
+        except TypeError:
+            print("No ArUco markers detected")
 
+        return Detected_ArUco_markers
 
-def mark_ArUco(img,Detected_ArUco_markers):
-	## function to mark ArUco in the test image as per the instructions given in problem statement
-	## arguments: img is the test image 
-	##			  Detected_ArUco_markers is the dictionary returned by function detect_ArUco(img)
-	## return: image helping sherlock to solve maze 
+    def mark_ArUco(self, img, Detected_ArUco_markers):
+        ids = Detected_ArUco_markers.keys()
+        centre_aruco = {}
+        top_centre = {}
 
-    ids = Detected_ArUco_markers.keys()   # IDs of all aruco markers in the scene
-    print(Detected_ArUco_markers)
-    centre_aruco = {}
-    top_centre = {}
-	
-    # drawing circles and line for each aruco marker by using coordinates found earlier
-    try:
-        for id in ids:
-            corners = Detected_ArUco_markers[id]
-            for i in range(0, 4):
-                cv2.circle(img,(int(corners[i][0]), int(corners[i][1])), 5, (0,0,255), -1)
-            centre_aruco[id] = (corners[0]+corners[1]+corners[2]+corners[3])/4
-            top_centre[id] = (corners[0]+corners[1])/2
-            cv2.line(img, (int(centre_aruco[id][0]), int(centre_aruco[id][1])),
-	    		(int(top_centre[id][0]), int(top_centre[id][1])), (255, 0, 0), 5)
+        try:
+            for id in ids:
+                corners = Detected_ArUco_markers[id]
+                for i in range(0, 4):
+                    cv2.circle(img, (int(corners[i][0]), int(corners[i][1])), 5, (0, 0, 255), -1)
+                centre_aruco[id] = (corners[0] + corners[1] + corners[2] + corners[3]) / 4
+                top_centre[id] = (corners[0] + corners[1]) / 2
+                cv2.line(img, (int(centre_aruco[id][0]), int(centre_aruco[id][1])),
+                         (int(top_centre[id][0]), int(top_centre[id][1])), (255, 0, 0), 5)
 
-    except TypeError:
-        print("No aruco in front of me")
+        except TypeError:
+            print("No ArUco markers detected")
 
-    return img
+        return img
 
-def callback(img):
-    bridge = CvBridge()
-    try:
-        cv_image = bridge.imgmsg_to_cv2(img, "bgr8")       # convering imahe to CV2 usable format
-    except CvBridgeError as e:
-        rospy.logerr("CvBridge Error: {0}".format(e))      
-    Detected_ArUco_markers = detect_ArUco(cv_image)	   # Dictionary of detected markers
-    img = mark_ArUco(cv_image,Detected_ArUco_markers)      # Image marked with circles and line for each aruco marker
-    cv2.namedWindow("Image Window", 1)       		   # creating named window
-    cv2.imshow("Image Window", img)			   # displaying edited image
-    k = cv2.waitKey(1)					   # waiting 1 second for user input
-    
+    def callback(self, msg):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            self.get_logger().error("CvBridge Error: {0}".format(e))
+            return
 
-def laser():
-    rospy.Subscriber('/turtlebot3_waffle_pi/camera/image_raw', Image, callback)
-    rospy.spin()
+        Detected_ArUco_markers = self.detect_ArUco(cv_image)
+        img = self.mark_ArUco(cv_image, Detected_ArUco_markers)
+        cv2.namedWindow("Image Window", 1)
+        cv2.imshow("Image Window", img)
+        k = cv2.waitKey(1)
 
+def main(args=None):
+    rclpy.init(args=args)
+    aruco_detector = ArUcoDetector()
+    rclpy.spin(aruco_detector)
+    aruco_detector.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
-    rospy.init_node('detect_marker')
-    try:
-        laser()
+    main()
 
-    except rospy.ROSInterruptException:
-        pass
 	
 ```
 Run ```roslaunch aruco_detection turtlebot3_teleop_key.launch``` in another window, and try to move the bot.
